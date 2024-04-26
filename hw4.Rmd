@@ -8,13 +8,48 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # kaggle datasets download -d rohanrao/formula-1-world-championship-1950-2020
+library(tidyverse)
 ```
 
-# Formula 1 2023 Statistics Visualization
+# Formula 1 2023 Season Statistics Visualization
 
 Data Collected from Kaggle dataset [Formula 1 World Championship (1950-2023)](https://www.kaggle.com/datasets/rohanrao/formula-1-world-championship-1950-2020?resource=download)
 
 ```{r}
+drivers = read.csv("./data/drivers.csv")
 
+races = read.csv("./data/races.csv")
+races = races |>
+  filter(races$year == 2023) |>
+  select("raceId", "year", "round", "circuitId", "name", "date")
+
+constructors = read.csv("./data/constructors.csv")
+circuits = read.csv("./data/circuits.csv")
+results = read.csv("./data/results.csv")
+constructor_standings = read.csv("./data/constructor_standings.csv")
+constructor_standings = constructor_standings |>
+  filter(raceId >= 1098)
+
+results = results |>
+  filter(results$raceId >= 1098)
+
+races = left_join(races, circuits, by="circuitId") |>
+  rename(
+    race_name = name.x,
+    circuit_name = name.y
+  ) |>
+  select(-alt, -url)
+
+
+results = left_join(results, drivers, by="driverId") |>
+  rename( driver_num = number.y ) |>
+  select(-number.x, -url)
+
+constructor_standings = left_join(constructor_standings, 
+                                  constructors, 
+                                  by="constructorId") |>
+  select(-positionText, -url, -constructorStandingsId)
+
+
+head(constructor_standings)
 ```
-
