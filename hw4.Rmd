@@ -8,12 +8,17 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # kaggle datasets download -d rohanrao/formula-1-world-championship-1950-2020
+# install.packages("shiny", "shinyWidgets")
+library(shiny)
+library(shinyWidgets)
 library(tidyverse)
+library(ggplot2)
 ```
 
 # Formula 1 2023 Season Statistics Visualization
 
 Data Collected from Kaggle dataset [Formula 1 World Championship (1950-2023)](https://www.kaggle.com/datasets/rohanrao/formula-1-world-championship-1950-2020?resource=download)
+Headshots [Here](https://www.skysports.com/f1/drivers-teams)
 
 ```{r}
 drivers = read.csv("./data/drivers.csv")
@@ -50,6 +55,45 @@ constructor_standings = left_join(constructor_standings,
                                   by="constructorId") |>
   select(-positionText, -url, -constructorStandingsId)
 
+# Get 2023 Season Drivers
+drivers_2023 = unique(results$driverId)
+drivers = drivers |>
+  filter(driverId %in% drivers_2023)
+
+circuits_2023 = unique(races$circuitId)
+circuits = circuits |>
+  filter(circuitId %in% circuits_2023) |>
+  select(-url)
+
 
 head(constructor_standings)
 ```
+
+```{r}
+drivers_2023
+```
+
+
+```{r}
+ui = fluidPage(
+  titlePanel(h1("Formula 1 2023 Season Driver Statistics", style={'color:white; background-color:#FF1E00'})),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("surname", "Surname", drivers$surname),
+      selectInput("circuit", "Circuit", circuits$name)
+    ),
+    mainPanel(
+      plotOutput("team_stats"),
+      setBackgroundColor("white")
+    )
+  )
+)
+
+server = function(input, output) {
+  
+}
+
+shinyApp(ui, server)
+```
+
+
