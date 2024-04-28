@@ -13,6 +13,7 @@ library(shiny)
 library(shinyWidgets)
 library(tidyverse)
 library(ggplot2)
+library(leaflet)
 ```
 
 # Formula 1 2023 Season Statistics Visualization
@@ -76,24 +77,45 @@ drivers_2023
 
 ```{r}
 ui = fluidPage(
-  titlePanel(h1("Formula 1 2023 Season Driver Statistics", style={'color:white; background-color:#FF1E00'})),
+  titlePanel(
+    # img(src="f1_logo.png", align="left"),
+    h1("Formula 1 2023 Season Driver Statistics", style={'color:white; background-color:#FF1E00'})
+    ),
   sidebarLayout(
     sidebarPanel(
       selectInput("surname", "Surname", drivers$surname),
       selectInput("circuit", "Circuit", circuits$name)
     ),
     mainPanel(
-      plotOutput("team_stats"),
-      setBackgroundColor("white")
+      leafletOutput("map"), 
+      # plotOutput("team_stats"),
+      setBackgroundColor("#FF1E00")
     )
   )
 )
 
 server = function(input, output) {
-  
+   output$map <- renderLeaflet({
+    leaflet(data=circuits) |>
+      addTiles() |>
+      setView(lng = 0, lat = 0, zoom = 2) |>
+      addMarkers(popup=~paste("<b>Circuit:</b>", name, 
+                              "<br><b>City:</b>", location, 
+                              "<br><b>Country:</b>", country))
+  })
 }
 
 shinyApp(ui, server)
 ```
 
+
+```{r}
+
+for(i in 1:nrow(circuits)) {
+        # addMarkers(lng = circuits$lng[i], lat = circuits$lat[i], popup = circuits$name[i])
+    # sprintf("%s: (%.2f, %.2f)", circuits$name[i], circuits$lat[i], circuits$lng[i])
+  print(circuits$name[i])
+}
+
+```
 
