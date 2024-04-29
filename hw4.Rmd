@@ -71,7 +71,8 @@ head(constructor_standings)
 ```
 
 ```{r}
-drivers_2023
+race_results = races |>
+  select(date, race_name, circuit_name, location, country)
 ```
 
 
@@ -83,11 +84,25 @@ ui = fluidPage(
     ),
   sidebarLayout(
     sidebarPanel(
-      selectInput("surname", "Surname", drivers$surname),
-      selectInput("circuit", "Circuit", circuits$name)
+      selectInput("stats", "Select Topic", c("Season", "Race")),
+      conditionalPanel(
+        condition = "input.stats == 'Race'",
+        selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+      )
+      # conditionalPanel(
+      #   condition = "input.stats == 'Driver'",
+      #   selectizeInput("driver_search", "Select a Driver", drivers$surname, multiple = FALSE)
+      # ),
     ),
     mainPanel(
-      leafletOutput("map"), 
+      conditionalPanel(
+        condition = "input.stats == 'Season'",
+        leafletOutput("map")
+      ),
+      conditionalPanel(
+        condition = "Race",
+        dataTableOutput("position_table")
+      ),
       # plotOutput("team_stats"),
       setBackgroundColor("#FF1E00")
     )
@@ -95,13 +110,30 @@ ui = fluidPage(
 )
 
 server = function(input, output) {
+  
+  selected_raceId <- reactive({
+    if (!is.null(input$race_search) && input$stats == "Race") {
+      raceId <- races[races$race_name == input$race_search, "raceId"]
+      return(raceId)
+    }
+    else { return(NULL) }
+  })
+  
    output$map <- renderLeaflet({
-    leaflet(data=circuits) |>
+    leaflet(data=races) |>
       addTiles() |>
-      setView(lng = 0, lat = 0, zoom = 2) |>
-      addMarkers(popup=~paste("<b>Circuit:</b>", name, 
+      setView(lng = -30, lat = 30, zoom = 2) |>
+      addMarkers(popup=~paste("<b>Race:</b>", race_name,
+                              "<br><b>Circuit:</b>", circuit_name, 
                               "<br><b>City:</b>", location, 
-                              "<br><b>Country:</b>", country))
+                              "<br><b>Country:</b>", country,
+                              "<br><b>Date:</b>", date))
+  })
+   
+  output$position_table = renderDataTable({
+    results %>%
+      filter(raceId == selected_raceId()) |>
+      select(position, points, forename, surname, driver_num, nationality, time, statusId)
   })
 }
 
