@@ -24,6 +24,8 @@ Headshots [Here](https://www.skysports.com/f1/drivers-teams)
 ```{r}
 drivers = read.csv("./data/drivers.csv")
 
+status = read.csv("./data/status.csv")
+
 races = read.csv("./data/races.csv")
 races = races |>
   filter(races$year == 2023) |>
@@ -67,12 +69,13 @@ circuits = circuits |>
   select(-url)
 
 
-head(constructor_standings)
+head(status)
 ```
 
 ```{r}
-race_results = races |>
-  select(date, race_name, circuit_name, location, country)
+results = left_join(results, status, by="statusId")
+# results$position[is.na(results$position)] <- "DNF"
+head(results)
 ```
 
 
@@ -97,7 +100,8 @@ ui = fluidPage(
     mainPanel(
       conditionalPanel(
         condition = "input.stats == 'Season'",
-        leafletOutput("map")
+        leafletOutput("map"),
+        dataTableOutput("schedule")
       ),
       conditionalPanel(
         condition = "Race",
@@ -119,7 +123,7 @@ server = function(input, output) {
     else { return(NULL) }
   })
   
-   output$map <- renderLeaflet({
+  output$map <- renderLeaflet({
     leaflet(data=races) |>
       addTiles() |>
       setView(lng = -30, lat = 30, zoom = 2) |>
@@ -130,24 +134,18 @@ server = function(input, output) {
                               "<br><b>Date:</b>", date))
   })
    
+  output$schedule = renderDataTable({
+    races %>%
+      select(round, date, race_name, circuit_name, location, country)
+  })
+   
   output$position_table = renderDataTable({
     results %>%
       filter(raceId == selected_raceId()) |>
-      select(position, points, forename, surname, driver_num, nationality, time, statusId)
+      select(position, forename, surname, driver_num, nationality, time, points, status)
   })
 }
 
 shinyApp(ui, server)
-```
-
-
-```{r}
-
-for(i in 1:nrow(circuits)) {
-        # addMarkers(lng = circuits$lng[i], lat = circuits$lat[i], popup = circuits$name[i])
-    # sprintf("%s: (%.2f, %.2f)", circuits$name[i], circuits$lat[i], circuits$lng[i])
-  print(circuits$name[i])
-}
-
 ```
 
