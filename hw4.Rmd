@@ -23,23 +23,15 @@ Headshots [Here](https://www.skysports.com/f1/drivers-teams)
 
 ```{r}
 drivers = read.csv("./data/drivers.csv")
-
 status = read.csv("./data/status.csv")
-
 races = read.csv("./data/races.csv")
-races = races |>
-  filter(races$year == 2023) |>
-  select("raceId", "year", "round", "circuitId", "name", "date")
-
 constructors = read.csv("./data/constructors.csv")
 circuits = read.csv("./data/circuits.csv")
 results = read.csv("./data/results.csv")
 constructor_standings = read.csv("./data/constructor_standings.csv")
-constructor_standings = constructor_standings |>
-  filter(raceId >= 1098)
 
-results = results |>
-  filter(results$raceId >= 1098)
+races = races |>
+  select("raceId", "year", "round", "circuitId", "name", "date")
 
 races = left_join(races, circuits, by="circuitId") |>
   rename(
@@ -47,7 +39,6 @@ races = left_join(races, circuits, by="circuitId") |>
     circuit_name = name.y
   ) |>
   select(-alt, -url)
-
 
 results = left_join(results, drivers, by="driverId") |>
   rename( driver_num = number.y ) |>
@@ -58,92 +49,146 @@ constructor_standings = left_join(constructor_standings,
                                   by="constructorId") |>
   select(-positionText, -url, -constructorStandingsId)
 
-# Get 2023 Season Drivers
-drivers_2023 = unique(results$driverId)
-drivers = drivers |>
-  filter(driverId %in% drivers_2023)
+# drivers_2023 = unique(results$driverId)
+# drivers = drivers |>
+#   filter(driverId %in% drivers_2023)
 
-circuits_2023 = unique(races$circuitId)
+# circuits_2023 = unique(races$circuitId)
 circuits = circuits |>
-  filter(circuitId %in% circuits_2023) |>
+  # filter(circuitId %in% circuits_2023) |>
   select(-url)
 
+constructors = constructors |>
+  select(constructorId, constructorRef, constr_name=name, constr_nationality=nationality)
 
-head(status)
+results = left_join(results, constructors, by="constructorId")
+
+results = left_join(results, status, by="statusId")
+results = left_join(results, races, by="raceId")
+
+# head(status)
 ```
 
 ```{r}
-results = left_join(results, status, by="statusId")
-# results$position[is.na(results$position)] <- "DNF"
-head(results)
+season_results <- results |>
+      filter(year=="2005") |>
+      group_by(driverId, forename, surname) |>
+      summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
+
+season_results
 ```
+
 
 
 ```{r}
 ui = fluidPage(
   titlePanel(
     # img(src="f1_logo.png", align="left"),
-    h1("Formula 1 2023 Season Driver Statistics", style={'color:white; background-color:#FF1E00'})
-    ),
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("stats", "Select Topic", c("Season", "Race")),
-      conditionalPanel(
-        condition = "input.stats == 'Race'",
-        selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+    h1("Formula 1 Season Statistics", style={'color:white; 
+                                              background-color:#FF1E00;
+                                              border-radius:5px;
+                                              padding:5px'})
+  ),
+  navbarPage(
+    tabPanel("Overview",
+      fluidRow(
+        column(3, selectInput("stats", "Select Topic", c("Season", "Race"))),
+        column(3, selectInput("season", "Select Season", unique(races$year), selected = "2023")),
+        # column(6,
+        #   conditionalPanel(
+        #     condition = "input.stats == 'Race'",
+        #     selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+        #   )
+        # )
+      ),
+      fluidRow(
+        column(12,
+          conditionalPanel(
+            condition = "input.stats == 'Season'",
+            h3("Total Points Per Driver", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
+            plotOutput("season_standings"),
+            h3("Circuit Locations", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
+            leafletOutput("map"),
+            h3("Race Schedule", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
+            dataTableOutput("schedule")
+          )
+          # conditionalPanel(
+          #   condition = "input.stats == 'Race'",
+          #   dataTableOutput("position_table")
+          # )
+        )
       )
-      # conditionalPanel(
-      #   condition = "input.stats == 'Driver'",
-      #   selectizeInput("driver_search", "Select a Driver", drivers$surname, multiple = FALSE)
-      # ),
-    ),
-    mainPanel(
-      conditionalPanel(
-        condition = "input.stats == 'Season'",
-        leafletOutput("map"),
-        dataTableOutput("schedule")
-      ),
-      conditionalPanel(
-        condition = "Race",
-        dataTableOutput("position_table")
-      ),
-      # plotOutput("team_stats"),
-      setBackgroundColor("#FF1E00")
     )
-  )
+  ),
+  width=15
 )
 
 server = function(input, output) {
   
-  selected_raceId <- reactive({
-    if (!is.null(input$race_search) && input$stats == "Race") {
-      raceId <- races[races$race_name == input$race_search, "raceId"]
-      return(raceId)
-    }
-    else { return(NULL) }
-  })
+  # selected_raceId <- reactive({
+  #   if (!is.null(input$race_search) && input$stats == "Race") {
+  #     raceId <- races[races$race_name == input$race_search, "raceId"]
+  #     return(raceId)
+  #   }
+  #   else { return(NULL) }
+  # })
+  
+  # observeEvent(input$season, {
+  #   result_df(results[results$year == input$season, ])
+  # })
   
   output$map <- renderLeaflet({
+    races = races |>
+      filter(year==input$season)
+    
     leaflet(data=races) |>
       addTiles() |>
       setView(lng = -30, lat = 30, zoom = 2) |>
-      addMarkers(popup=~paste("<b>Race:</b>", race_name,
+      addCircleMarkers(radius = 5,
+                       color = "#FF1E00",
+                       popup=~paste("<b>Race:</b>", race_name,
                               "<br><b>Circuit:</b>", circuit_name, 
                               "<br><b>City:</b>", location, 
                               "<br><b>Country:</b>", country,
                               "<br><b>Date:</b>", date))
   })
+  
+  output$season_standings = renderPlot({
+    season_results <- results |>
+      filter(year==input$season) |>
+      group_by(driverId, forename, surname) |>
+      summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
+  
+    ggplot(season_results, aes(y=reorder(surname, +total_points), x=total_points, fill = forename)) +
+      geom_bar(stat="identity") +
+      geom_text(aes(label = total_points), hjust = -0.2, size = 3) +
+      labs(x = "Total Points", 
+           y = "Surname", 
+           title = "Total Points per Driver") +
+      theme_minimal() +
+      theme(axis.text.y = element_text(size = 8),
+            legend.position = "none")
+  })
    
   output$schedule = renderDataTable({
     races %>%
-      select(round, date, race_name, circuit_name, location, country)
+      filter(year==input$season) |>
+      select(Round=round, Date=date, Race=race_name, Circuit=circuit_name, Location=location, Country=country)
   })
    
-  output$position_table = renderDataTable({
-    results %>%
-      filter(raceId == selected_raceId()) |>
-      select(position, forename, surname, driver_num, nationality, time, points, status)
-  })
+  # output$position_table = renderDataTable({
+  #   results %>%
+  #     filter(year==input$season, raceId == selected_raceId()) |>
+  #     select(Position=positionText, 
+  #            Forname=forename, 
+  #            Surname=surname, 
+  #            Number=driver_num, 
+  #            Nationality=nationality, 
+  #            Constructor=constr_name,
+  #            Time=time, 
+  #            Points=points, 
+  #            Status=status)
+  # })
 }
 
 shinyApp(ui, server)
