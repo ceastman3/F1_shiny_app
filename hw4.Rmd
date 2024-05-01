@@ -78,12 +78,12 @@ results = left_join(results, races, by="raceId")
 ```
 
 ```{r}
-season_results = results |>
-      filter(year==2023) |>
-      group_by(driverId, full_name, constr_name) |>
-      summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
-
-head(season_results)
+# season_results = results |>
+#       filter(year==2023) |>
+#       group_by(driverId, full_name, constr_name) |>
+#       summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
+# 
+# head(season_results)
 ```
 
 
@@ -101,44 +101,50 @@ ui = fluidPage(
       fluidRow(
         column(3, selectInput("stats", "Select Topic", c("Season", "Race"))),
         column(3, selectInput("season", "Select Season", unique(seasons$year), selected = "2023")),
-        # column(6,
-        #   conditionalPanel(
-        #     condition = "input.stats == 'Race'",
-        #     selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
-        #   )
-        # )
+        column(6,
+          conditionalPanel(
+            condition = "input.stats == 'Race'",
+            selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+          )
+        )
       ),
       fluidRow(
         column(12,
           conditionalPanel(
             condition = "input.stats == 'Season'",
             h3("Total Points Per Driver", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
-            plotOutput("season_standings"),
+            plotOutput("season_standings")
+  
+          ),
+          conditionalPanel(
+            condition = "input.stats == 'Race'",
+            dataTableOutput("position_table")
+          )
+        )
+      ),
+      fluidRow(
+        column(6,
             h3("Circuit Locations", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
             leafletOutput("map"),
+            ),
+        column(6,
             h3("Race Schedule", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
-            dataTableOutput("schedule")
-          )
-          # conditionalPanel(
-          #   condition = "input.stats == 'Race'",
-          #   dataTableOutput("position_table")
-          # )
-        )
+            dataTableOutput("schedule"))
       )
     )
   ),
-  width=15
+  width=20
 )
 
 server = function(input, output) {
   
-  # selected_raceId <- reactive({
-  #   if (!is.null(input$race_search) && input$stats == "Race") {
-  #     raceId <- races[races$race_name == input$race_search, "raceId"]
-  #     return(raceId)
-  #   }
-  #   else { return(NULL) }
-  # })
+  selected_raceId <- reactive({
+    if (!is.null(input$race_search)) {
+      raceId <- races[races$race_name == input$race_search, "raceId"]
+      return(raceId)
+    }
+    else { return(NULL) }
+  })
   
   output$map = renderLeaflet({
     races = races |>
@@ -177,22 +183,24 @@ server = function(input, output) {
   output$schedule = renderDataTable({
     races %>%
       filter(year==input$season) |>
-      select(Round=round, Date=date, Race=race_name, Circuit=circuit_name, Location=location, Country=country)
+      # select(Round=round, Date=date, Race=race_name, Circuit=circuit_name, Location=location, Country=country)
+            select(Date=date, Race=race_name)
+
   })
    
-  # output$position_table = renderDataTable({
-  #   results %>%
-  #     filter(year==input$season, raceId == selected_raceId()) |>
-  #     select(Position=positionText, 
-  #            Forname=forename, 
-  #            Surname=surname, 
-  #            Number=driver_num, 
-  #            Nationality=nationality, 
-  #            Constructor=constr_name,
-  #            Time=time, 
-  #            Points=points, 
-  #            Status=status)
-  # })
+  output$position_table = renderDataTable({
+    results %>%
+      filter(year==input$season, raceId == selected_raceId()) |>
+      select(Position=positionText,
+             Forname=forename,
+             Surname=surname,
+             Number=driver_num,
+             Nationality=nationality,
+             Constructor=constr_name,
+             Time=time,
+             Points=points,
+             Status=status)
+  })
 }
 
 shinyApp(ui, server)
