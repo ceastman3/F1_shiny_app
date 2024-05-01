@@ -78,12 +78,11 @@ results = left_join(results, races, by="raceId")
 ```
 
 ```{r}
-# season_results = results |>
-#       filter(year==2023) |>
-#       group_by(driverId, full_name, constr_name) |>
-#       summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
-# 
-# head(season_results)
+results %>%
+      filter(year==2023, raceId == "1098") |>
+      select(Position=positionText,
+             Forname=forename,
+             Surname=surname)
 ```
 
 
@@ -118,18 +117,25 @@ ui = fluidPage(
           ),
           conditionalPanel(
             condition = "input.stats == 'Race'",
-            dataTableOutput("position_table")
+            # dataTableOutput("position_table")
           )
         )
       ),
       fluidRow(
-        column(6,
-            h3("Circuit Locations", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
-            leafletOutput("map"),
-            ),
-        column(6,
+        column(5,
             h3("Race Schedule", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
-            dataTableOutput("schedule"))
+            plotOutput("timelinePlot")
+        ),
+        column(7,
+            h3("Circuit Locations", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
+            leafletOutput("map")
+        )
+      ),
+      fluidRow(
+        column(12,
+            h3("Race Results", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
+            dataTableOutput("position_table")
+        ),
       )
     )
   ),
@@ -138,13 +144,13 @@ ui = fluidPage(
 
 server = function(input, output) {
   
-  selected_raceId <- reactive({
-    if (!is.null(input$race_search)) {
-      raceId <- races[races$race_name == input$race_search, "raceId"]
-      return(raceId)
-    }
-    else { return(NULL) }
-  })
+  # selected_raceId <- reactive({
+  #   if (!is.null(input$race_search)) {
+  #     raceId <- races[races$race_name == input$race_search, "raceId"]
+  #     return(raceId)
+  #   }
+  #   else { return(NULL) }
+  # })
   
   output$map = renderLeaflet({
     races = races |>
@@ -190,7 +196,7 @@ server = function(input, output) {
    
   output$position_table = renderDataTable({
     results %>%
-      filter(year==input$season, raceId == selected_raceId()) |>
+      filter(year==input$season, raceId == "1098") |>
       select(Position=positionText,
              Forname=forename,
              Surname=surname,
@@ -200,6 +206,26 @@ server = function(input, output) {
              Time=time,
              Points=points,
              Status=status)
+  })
+  
+  output$timelinePlot <- renderPlot({
+    time_races = races |>
+      filter(year==input$season) |>
+      select(date, race_name)
+    
+    ggplot(time_races, aes(x = 1, y = date, label = race_name)) +
+      geom_segment(aes(x = 1, xend = 1, y = min(date), yend = max(date)), color = "grey", alpha=0.8) +
+      geom_point(color = "red", size = 2) +
+      geom_text(nudge_x = 0, vjust = 0.5, hjust=-0.1) +
+      geom_text(aes(label = as.character(date)), nudge_y = -0.05, hjust = 1.1, color = "black") +
+      theme_minimal() +
+      theme(axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.x = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank()) 
   })
 }
 
