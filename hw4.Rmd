@@ -8,7 +8,6 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # kaggle datasets download -d rohanrao/formula-1-world-championship-1950-2020
-# install.packages("shiny", "shinyWidgets")
 library(shiny)
 library(shinyWidgets)
 library(tidyverse)
@@ -29,7 +28,6 @@ seasons = read.csv("./data/seasons.csv")
 constructors = read.csv("./data/constructors.csv")
 circuits = read.csv("./data/circuits.csv")
 results = read.csv("./data/results.csv")
-constructor_standings = read.csv("./data/constructor_standings.csv")
 
 drivers = drivers |>
   mutate(full_name = paste(forename, surname)) |>
@@ -52,18 +50,7 @@ results = left_join(results, drivers, by="driverId") |>
   rename( driver_num = number.y ) |>
   select(-number.x)
 
-constructor_standings = left_join(constructor_standings, 
-                                  constructors, 
-                                  by="constructorId") |>
-  select(-positionText, -url, -constructorStandingsId)
-
-# drivers_2023 = unique(results$driverId)
-# drivers = drivers |>
-#   filter(driverId %in% drivers_2023)
-
-# circuits_2023 = unique(races$circuitId)
 circuits = circuits |>
-  # filter(circuitId %in% circuits_2023) |>
   select(-url)
 
 constructors = constructors |>
@@ -77,18 +64,12 @@ results = left_join(results, races, by="raceId")
 # head(status)
 ```
 
-```{r}
-races |>
-        filter(year==2023) |>
-        select(date, race_name, raceId)
-```
-
 
 ```{r}
 ui = fluidPage(
   titlePanel(
     # img(src="f1_logo.png", align="left"),
-    h1("Formula 1 Season Statistics (1950-2023)", style={'color:white; 
+    h1("Formula 1 Seasonal Statistics (1950-2023)", style={'color:white; 
                                               background-color:#FF1E00;
                                               border-radius:5px;
                                               padding:5px'})
@@ -98,26 +79,11 @@ ui = fluidPage(
       fluidRow(
         # selectInput("season", "Select Season", unique(seasons$year), selected = "2023")
         column(12, selectInput("season", "Select Season", unique(seasons$year), selected = "2023")),
-        # column(3, selectInput("stats", "Select Topic", c("Season", "Race"))),
-        # column(6,
-        #   conditionalPanel(
-        #     condition = "input.stats == 'Race'",
-        #     selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
-        #   )
-        # )
       ),
       fluidRow(
         column(12,
-          # conditionalPanel(
-            # condition = "input.stats == 'Season'",
             h3("Total Points Per Driver", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
             plotOutput("season_standings")
-  
-          # ),
-          # conditionalPanel(
-          #   condition = "input.stats == 'Race'",
-          #   # dataTableOutput("position_table")
-          # )
         )
       ),
       fluidRow(
@@ -139,31 +105,38 @@ ui = fluidPage(
         column(12,
             h3("Race Results", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
             dataTableOutput("position_table")
-            # textOutput("test")
         ),
       )
     )
   ),
-  width=20
+  width=12
 )
 
 server = function(input, output, session) {
   
-  filteredRaces <- reactive({
+  filteredRaces = reactive({
     req(input$season)
     subset(races, year == input$season)$race_name
   })
   
+  seasonResults = reactive({
+    req(input$season)
+    results |>
+      filter(year==input$season)
+  })
+  
+  seasonRaces = reactive({
+    req(input$season)
+    races |>
+    filter(year==input$season)
+  })
+  
   observeEvent(input$season, {
-    updateSelectInput(session, "race",
-                      choices = filteredRaces())
+    updateSelectInput(session, "race", choices = filteredRaces())
   })
   
   output$map = renderLeaflet({
-    races = races |>
-      filter(year==input$season)
-    
-    leaflet(data=races) |>
+    leaflet(data=seasonRaces()) |>
       addTiles() |>
       setView(lng = -30, lat = 30, zoom = 2) |>
       addCircleMarkers(radius = 5,
@@ -176,8 +149,7 @@ server = function(input, output, session) {
   })
   
   output$season_standings = renderPlot({
-    season_results = results |>
-      filter(year==input$season) |>
+    season_results = seasonResults() |>
       group_by(driverId, full_name, constr_name) |>
       summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
   
@@ -194,10 +166,7 @@ server = function(input, output, session) {
   })
    
   output$position_table = renderDataTable({
-    seas_results = results |>
-      filter(year==input$season)
-    
-    seas_results %>%
+    seasonResults() %>%
       filter(race_name == input$race) |>
       select(Position=positionText,
              Forname=forename,
@@ -210,14 +179,8 @@ server = function(input, output, session) {
              Status=status)
   })
   
-  output$test = renderText({
-    paste("You selected:", input$race)
-  })
-  
-  
   output$timelinePlot <- renderPlot({
-    time_races = races |>
-      filter(year==input$season) |>
+    time_races = seasonRaces() |>
       select(date, race_name)
     
     ggplot(time_races, aes(x = 1, y = date, label = race_name)) +
