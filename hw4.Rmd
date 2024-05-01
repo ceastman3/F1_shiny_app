@@ -90,7 +90,7 @@ results %>%
 ui = fluidPage(
   titlePanel(
     # img(src="f1_logo.png", align="left"),
-    h1("Formula 1 Season Statistics", style={'color:white; 
+    h1("Formula 1 Season Statistics (1950-2023)", style={'color:white; 
                                               background-color:#FF1E00;
                                               border-radius:5px;
                                               padding:5px'})
@@ -98,27 +98,28 @@ ui = fluidPage(
   navbarPage(
     tabPanel("Overview",
       fluidRow(
-        column(3, selectInput("stats", "Select Topic", c("Season", "Race"))),
-        column(3, selectInput("season", "Select Season", unique(seasons$year), selected = "2023")),
-        column(6,
-          conditionalPanel(
-            condition = "input.stats == 'Race'",
-            selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
-          )
-        )
+        # selectInput("season", "Select Season", unique(seasons$year), selected = "2023")
+        column(12, selectInput("season", "Select Season", unique(seasons$year), selected = "2023")),
+        # column(3, selectInput("stats", "Select Topic", c("Season", "Race"))),
+        # column(6,
+        #   conditionalPanel(
+        #     condition = "input.stats == 'Race'",
+        #     selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+        #   )
+        # )
       ),
       fluidRow(
         column(12,
-          conditionalPanel(
-            condition = "input.stats == 'Season'",
+          # conditionalPanel(
+            # condition = "input.stats == 'Season'",
             h3("Total Points Per Driver", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
             plotOutput("season_standings")
   
-          ),
-          conditionalPanel(
-            condition = "input.stats == 'Race'",
-            # dataTableOutput("position_table")
-          )
+          # ),
+          # conditionalPanel(
+          #   condition = "input.stats == 'Race'",
+          #   # dataTableOutput("position_table")
+          # )
         )
       ),
       fluidRow(
@@ -130,6 +131,11 @@ ui = fluidPage(
             h3("Circuit Locations", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
             leafletOutput("map")
         )
+      ),
+      fluidRow(
+        column(5,
+            selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+        ),
       ),
       fluidRow(
         column(12,
@@ -184,14 +190,6 @@ server = function(input, output) {
       theme_minimal() +
       theme(axis.text.y = element_text(size = 8),
             legend.position = "right")
-  })
-   
-  output$schedule = renderDataTable({
-    races %>%
-      filter(year==input$season) |>
-      # select(Round=round, Date=date, Race=race_name, Circuit=circuit_name, Location=location, Country=country)
-            select(Date=date, Race=race_name)
-
   })
    
   output$position_table = renderDataTable({
