@@ -78,11 +78,9 @@ results = left_join(results, races, by="raceId")
 ```
 
 ```{r}
-results %>%
-      filter(year==2023, raceId == "1098") |>
-      select(Position=positionText,
-             Forname=forename,
-             Surname=surname)
+races |>
+        filter(year==2023) |>
+        select(date, race_name, raceId)
 ```
 
 
@@ -134,13 +132,14 @@ ui = fluidPage(
       ),
       fluidRow(
         column(5,
-            selectizeInput("race_search", "Select a Race", races$race_name, multiple = FALSE)
+            selectizeInput("race", "Select a Race", NULL, multiple = FALSE)
         ),
       ),
       fluidRow(
         column(12,
             h3("Race Results", style = "color:white; background-color:#FF1E00; border-radius:5px; padding:5px"),
             dataTableOutput("position_table")
+            # textOutput("test")
         ),
       )
     )
@@ -148,15 +147,17 @@ ui = fluidPage(
   width=20
 )
 
-server = function(input, output) {
+server = function(input, output, session) {
   
-  # selected_raceId <- reactive({
-  #   if (!is.null(input$race_search)) {
-  #     raceId <- races[races$race_name == input$race_search, "raceId"]
-  #     return(raceId)
-  #   }
-  #   else { return(NULL) }
-  # })
+  filteredRaces <- reactive({
+    req(input$season)
+    subset(races, year == input$season)$race_name
+  })
+  
+  observeEvent(input$season, {
+    updateSelectInput(session, "race",
+                      choices = filteredRaces())
+  })
   
   output$map = renderLeaflet({
     races = races |>
@@ -193,8 +194,11 @@ server = function(input, output) {
   })
    
   output$position_table = renderDataTable({
-    results %>%
-      filter(year==input$season, raceId == "1098") |>
+    seas_results = results |>
+      filter(year==input$season)
+    
+    seas_results %>%
+      filter(race_name == input$race) |>
       select(Position=positionText,
              Forname=forename,
              Surname=surname,
@@ -205,6 +209,11 @@ server = function(input, output) {
              Points=points,
              Status=status)
   })
+  
+  output$test = renderText({
+    paste("You selected:", input$race)
+  })
+  
   
   output$timelinePlot <- renderPlot({
     time_races = races |>
