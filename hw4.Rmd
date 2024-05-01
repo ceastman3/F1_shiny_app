@@ -25,10 +25,15 @@ Headshots [Here](https://www.skysports.com/f1/drivers-teams)
 drivers = read.csv("./data/drivers.csv")
 status = read.csv("./data/status.csv")
 races = read.csv("./data/races.csv")
+seasons = read.csv("./data/seasons.csv")
 constructors = read.csv("./data/constructors.csv")
 circuits = read.csv("./data/circuits.csv")
 results = read.csv("./data/results.csv")
 constructor_standings = read.csv("./data/constructor_standings.csv")
+
+drivers = drivers |>
+  mutate(full_name = paste(forename, surname)) |>
+  select(-url)
 
 races = races |>
   select("raceId", "year", "round", "circuitId", "name", "date")
@@ -40,9 +45,12 @@ races = left_join(races, circuits, by="circuitId") |>
   ) |>
   select(-alt, -url)
 
+seasons <- seasons[order(seasons$year), ]
+row.names(seasons) <- NULL
+
 results = left_join(results, drivers, by="driverId") |>
   rename( driver_num = number.y ) |>
-  select(-number.x, -url)
+  select(-number.x)
 
 constructor_standings = left_join(constructor_standings, 
                                   constructors, 
@@ -70,14 +78,13 @@ results = left_join(results, races, by="raceId")
 ```
 
 ```{r}
-season_results <- results |>
-      filter(year=="2005") |>
-      group_by(driverId, forename, surname) |>
+season_results = results |>
+      filter(year==2023) |>
+      group_by(driverId, full_name, constr_name) |>
       summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
 
-season_results
+head(season_results)
 ```
-
 
 
 ```{r}
@@ -93,7 +100,7 @@ ui = fluidPage(
     tabPanel("Overview",
       fluidRow(
         column(3, selectInput("stats", "Select Topic", c("Season", "Race"))),
-        column(3, selectInput("season", "Select Season", unique(races$year), selected = "2023")),
+        column(3, selectInput("season", "Select Season", unique(seasons$year), selected = "2023")),
         # column(6,
         #   conditionalPanel(
         #     condition = "input.stats == 'Race'",
@@ -133,11 +140,7 @@ server = function(input, output) {
   #   else { return(NULL) }
   # })
   
-  # observeEvent(input$season, {
-  #   result_df(results[results$year == input$season, ])
-  # })
-  
-  output$map <- renderLeaflet({
+  output$map = renderLeaflet({
     races = races |>
       filter(year==input$season)
     
@@ -154,20 +157,21 @@ server = function(input, output) {
   })
   
   output$season_standings = renderPlot({
-    season_results <- results |>
+    season_results = results |>
       filter(year==input$season) |>
-      group_by(driverId, forename, surname) |>
+      group_by(driverId, full_name, constr_name) |>
       summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
   
-    ggplot(season_results, aes(y=reorder(surname, +total_points), x=total_points, fill = forename)) +
+    ggplot(season_results, aes(y=reorder(full_name, +total_points), x=total_points, fill = constr_name)) +
       geom_bar(stat="identity") +
       geom_text(aes(label = total_points), hjust = -0.2, size = 3) +
       labs(x = "Total Points", 
-           y = "Surname", 
-           title = "Total Points per Driver") +
+           y = "Driver", 
+           title = "Total Points per Driver",
+           fill = "Constructor") +
       theme_minimal() +
       theme(axis.text.y = element_text(size = 8),
-            legend.position = "none")
+            legend.position = "right")
   })
    
   output$schedule = renderDataTable({
