@@ -66,9 +66,30 @@ results = left_join(results, races, by="raceId")
 
 
 ```{r}
+# res = time_races = races |>
+#       filter(year==2023) |>
+#       select(date, race_name)
+# 
+# res
+
+res = results |>
+  filter(year==2023) |>
+  group_by(driverId, full_name, constr_name) |>
+  summarise(total_points = sum(points, na.rm = TRUE), .groups = "drop")
+
+drvr = res[res$total_points == max(res$total_points),]
+paste(2023, "<b>Season Champion:</b>",
+          "<br><b>Driver:</b>", drvr$full_name, 
+          "<br><b>Constructor:</b>", drvr$constr_name, 
+          "<br><b>Total points:</b>", drvr$total_points)
+```
+
+
+
+```{r}
 ui = fluidPage(
   titlePanel(
-    # img(src="f1_logo.png", align="left"),
+    # img(src="f1_logo.png"),
     h1("Formula 1 Seasonal Statistics (1950-2023)", style={'color:white; 
                                               background-color:#FF1E00;
                                               border-radius:5px;
@@ -78,6 +99,7 @@ ui = fluidPage(
     tabPanel("Overview",
       fluidRow(
         # selectInput("season", "Select Season", unique(seasons$year), selected = "2023")
+        
         column(12, selectInput("season", "Select Season", unique(seasons$year), selected = "2023")),
       ),
       fluidRow(
@@ -197,6 +219,8 @@ server = function(input, output, session) {
             panel.grid.major = element_blank(),
             panel.grid.minor = element_blank()) 
   })
+  
+  
 }
 
 shinyApp(ui, server)
