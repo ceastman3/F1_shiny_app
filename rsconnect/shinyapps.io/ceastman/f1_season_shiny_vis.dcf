@@ -1,0 +1,10 @@
+name: f1_season_shiny_vis
+title:
+username: ceastman
+account: ceastman
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11929715
+bundleId: 8573342
+url: https://ceastman.shinyapps.io/f1_season_shiny_vis/
+version: 1
