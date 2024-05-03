@@ -4,7 +4,6 @@ library(tidyverse)
 library(ggplot2)
 library(leaflet)
 
-
 # Reads in data
 drivers = read.csv("./data/drivers.csv")
 status = read.csv("./data/status.csv")
@@ -13,6 +12,16 @@ seasons = read.csv("./data/seasons.csv")
 constructors = read.csv("./data/constructors.csv")
 circuits = read.csv("./data/circuits.csv")
 results = read.csv("./data/results.csv")
+
+# Reads in data
+# drivers = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/drivers.csv")
+# status = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/status.csv")
+# races = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/races.csv")
+# seasons = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/seasons.csv")
+# constructors = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/constructors.csv")
+# circuits = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/circuits.csv")
+# results = read.csv("https://raw.githubusercontent.com/ceastman3/F1_shiny_app/main/data/results.csv")
+
 
 drivers = drivers |>
   mutate(full_name = paste(forename, surname)) |>
